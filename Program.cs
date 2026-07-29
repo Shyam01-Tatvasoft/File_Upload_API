@@ -1,5 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Backend.Interfaces;
 using Backend.Services;
+using Backend.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +13,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IGreetingService, GreetingService>();
-
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
