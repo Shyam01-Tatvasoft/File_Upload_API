@@ -2,6 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Backend.Interfaces;
 using Backend.Services;
 using Backend.Data;
+using Backend.Mappings;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Backend.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +19,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IGreetingService, GreetingService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-    
+builder.Services.AddAutoMapper(typeof(FileMappingProfile));
+builder.Services.AddValidatorsFromAssemblyContaining<FileUploadDtoValidator>();
+builder.Services.AddFluentValidationAutoValidation();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
