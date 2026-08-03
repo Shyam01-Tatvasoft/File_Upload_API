@@ -8,6 +8,8 @@ using FluentValidation.AspNetCore;
 using Backend.Validators;
 using CloudinaryDotNet;
 using Backend.Configurations;
+using Backend.Repositories;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +23,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IGreetingService, GreetingService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddAutoMapper(typeof(FileMappingProfile));
+builder.Services.AddAutoMapper(cfg => cfg.AddProfile<FileMappingProfile>());
 builder.Services.AddValidatorsFromAssemblyContaining<FileUploadDtoValidator>();
 builder.Services.AddFluentValidationAutoValidation();
 // Bind the Cloudinary section from configuration into our strongly-typed class
@@ -34,6 +36,9 @@ builder.Services.AddSingleton(sp =>
     var account = new Account(settings!.CloudName, settings.ApiKey, settings.ApiSecret);
     return new Cloudinary(account);
 });
+
+builder.Services.AddScoped<IFileRepository, FileRepository>();
+builder.Services.AddScoped<IFileService, FileService>();
 
 var app = builder.Build();
 
