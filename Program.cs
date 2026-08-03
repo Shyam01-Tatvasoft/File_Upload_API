@@ -6,6 +6,8 @@ using Backend.Mappings;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Backend.Validators;
+using CloudinaryDotNet;
+using Backend.Configurations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +24,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddAutoMapper(typeof(FileMappingProfile));
 builder.Services.AddValidatorsFromAssemblyContaining<FileUploadDtoValidator>();
 builder.Services.AddFluentValidationAutoValidation();
+// Bind the Cloudinary section from configuration into our strongly-typed class
+builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("Cloudinary"));
+
+// Register the Cloudinary client itself as a Singleton
+builder.Services.AddSingleton(sp =>
+{
+    var settings = builder.Configuration.GetSection("Cloudinary").Get<CloudinarySettings>();
+    var account = new Account(settings!.CloudName, settings.ApiKey, settings.ApiSecret);
+    return new Cloudinary(account);
+});
 
 var app = builder.Build();
 
