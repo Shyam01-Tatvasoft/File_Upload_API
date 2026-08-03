@@ -22,5 +22,13 @@ namespace Backend.Controllers
             var result = await _fileService.UploadFileAsync(dto);
             return CreatedAtAction(nameof(Upload), new { id = result.Id }, result);
         }
+
+        [HttpPost("upload-multiple")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadMultiple([FromForm] FileUploadMultipleDto dto)
+        {
+            var results = await _fileService.UploadMultipleFilesAsync(dto);
+            return Created(string.Empty, results);
+        }
     }
 }

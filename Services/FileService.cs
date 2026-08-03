@@ -4,6 +4,7 @@ using CloudinaryDotNet.Actions;
 using Backend.DTOs;
 using Backend.Interfaces;
 using Backend.Models;
+using Backend.Helpers;
 
 namespace Backend.Services
 {
@@ -22,44 +23,78 @@ namespace Backend.Services
 
         public async Task<FileResponseDto> UploadFileAsync(FileUploadDto dto)
         {
-            var folder = string.IsNullOrWhiteSpace(dto.Folder) ? "file-upload-app/general" : dto.Folder;
+            var savedEntity = await UploadSingleInternalAsync(dto.File, dto.Folder);
+            return _mapper.Map<FileResponseDto>(savedEntity);
+        }
 
-            await using var stream = dto.File.OpenReadStream();
+        public async Task<List<FileResponseDto>> UploadMultipleFilesAsync(FileUploadMultipleDto dto)
+        {
+            var results = new List<FileResponseDto>();
 
-            var uploadParams = new ImageUploadParams
+            foreach (var file in dto.Files)
             {
-                File = new FileDescription(dto.File.FileName, stream),
-                Folder = folder,
-                UseFilename = true,
-                UniqueFilename = true,
-                Overwrite = false
-            };
+                var savedEntity = await UploadSingleInternalAsync(file, dto.Folder);
+                results.Add(_mapper.Map<FileResponseDto>(savedEntity));
+            }
 
-            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            return results;
+        }
+
+        private async Task<FileEntity> UploadSingleInternalAsync(Microsoft.AspNetCore.Http.IFormFile file, string? folderOverride)
+        {
+            var folder = string.IsNullOrWhiteSpace(folderOverride) ? "file-upload-app/general" : folderOverride;
+            var isImage = FileTypeHelper.IsImage(file.FileName);
+
+            await using var stream = file.OpenReadStream();
+
+            RawUploadResult uploadResult;
+
+            if (isImage)
+            {
+                var imageParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream),
+                    Folder = folder,
+                    UseFilename = true,
+                    UniqueFilename = true,
+                    Overwrite = false
+                };
+                uploadResult = await _cloudinary.UploadAsync(imageParams);
+            }
+            else
+            {
+                var rawParams = new RawUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream),
+                    Folder = folder,
+                    UseFilename = true,
+                    UniqueFilename = true,
+                    Overwrite = false
+                };
+                uploadResult = await _cloudinary.UploadAsync(rawParams);
+            }
 
             if (uploadResult.Error != null)
             {
-                throw new ApplicationException($"Cloudinary upload failed: {uploadResult.Error.Message}");
+                throw new ApplicationException($"Cloudinary upload failed for {file.FileName}: {uploadResult.Error.Message}");
             }
 
             var entity = new FileEntity
             {
                 FileName = uploadResult.PublicId,
-                OriginalFileName = dto.File.FileName,
+                OriginalFileName = file.FileName,
                 PublicId = uploadResult.PublicId,
                 SecureUrl = uploadResult.SecureUrl.ToString(),
                 FileType = uploadResult.ResourceType,
-                Extension = Path.GetExtension(dto.File.FileName),
+                Extension = Path.GetExtension(file.FileName),
                 FileSize = uploadResult.Bytes,
-                Width = uploadResult.Width,
-                Height = uploadResult.Height,
+                Width = isImage ? (uploadResult as ImageUploadResult)?.Width : null,
+                Height = isImage ? (uploadResult as ImageUploadResult)?.Height : null,
                 Folder = folder,
                 CreatedAt = DateTime.UtcNow
             };
 
-            var savedEntity = await _fileRepository.AddAsync(entity);
-
-            return _mapper.Map<FileResponseDto>(savedEntity);
+            return await _fileRepository.AddAsync(entity);
         }
     }
 }

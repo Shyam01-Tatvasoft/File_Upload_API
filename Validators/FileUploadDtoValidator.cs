@@ -5,33 +5,38 @@ namespace Backend.Validators
 {
     public class FileUploadDtoValidator : AbstractValidator<FileUploadDto>
     {
-        private readonly string[] _allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf" };
-        private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+        private readonly string[] _allowedImageExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        private readonly string[] _allowedDocumentExtensions = { ".pdf" };
+        private const long MaxImageSize = 10 * 1024 * 1024;   // 10 MB
+        private const long MaxDocumentSize = 20 * 1024 * 1024; // 20 MB
 
         public FileUploadDtoValidator()
         {
             RuleFor(x => x.File)
                 .NotNull().WithMessage("A file is required.")
-                .Must(HaveAFileName).WithMessage("The uploaded file must have a valid filename.")
-                .Must(BeAValidSize).WithMessage($"File size must not exceed {MaxFileSize / (1024 * 1024)} MB.")
-                .Must(BeAValidExtension).WithMessage("Only image files (.jpg, .jpeg, .png, .gif, .webp) and PDFs are allowed.");
+                .Must(HaveAllowedExtension).WithMessage("Only images (.jpg, .jpeg, .png, .gif, .webp) and PDFs are allowed.")
+                .Must(BeWithinSizeLimit).WithMessage("File exceeds the allowed size limit for its type.");
         }
 
-        private bool HaveAFileName(Microsoft.AspNetCore.Http.IFormFile file)
-        {
-            return file != null && !string.IsNullOrWhiteSpace(file.FileName);
-        }
-
-        private bool BeAValidSize(Microsoft.AspNetCore.Http.IFormFile file)
-        {
-            return file != null && file.Length > 0 && file.Length <= MaxFileSize;
-        }
-
-        private bool BeAValidExtension(Microsoft.AspNetCore.Http.IFormFile file)
+        private bool HaveAllowedExtension(Microsoft.AspNetCore.Http.IFormFile file)
         {
             if (file == null) return false;
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            return _allowedExtensions.Contains(extension);
+            return _allowedImageExtensions.Contains(extension) || _allowedDocumentExtensions.Contains(extension);
+        }
+
+        private bool BeWithinSizeLimit(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (file == null) return false;
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (_allowedImageExtensions.Contains(extension))
+                return file.Length > 0 && file.Length <= MaxImageSize;
+
+            if (_allowedDocumentExtensions.Contains(extension))
+                return file.Length > 0 && file.Length <= MaxDocumentSize;
+
+            return false;
         }
     }
 }
