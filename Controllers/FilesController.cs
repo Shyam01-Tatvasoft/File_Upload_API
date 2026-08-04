@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.DTOs;
 using Backend.Interfaces;
+using Backend.DTOs;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers
 {
@@ -29,6 +31,25 @@ namespace Backend.Controllers
         {
             var results = await _fileService.UploadMultipleFilesAsync(dto);
             return Created(string.Empty, results);
+        }
+
+
+
+        [HttpGet]
+        public async Task<IActionResult> GetFiles([FromQuery] FileQueryParamsDto queryParams)
+        {
+            var result = await _fileService.GetFilesAsync(queryParams);
+            return Ok(result);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetFileById(int id)
+        {
+            var file = await _fileService.GetByIdAsync(id);
+            if (file == null)
+                return NotFound(new { message = $"File with id {id} not found." });
+
+            return Ok(file);
         }
     }
 }

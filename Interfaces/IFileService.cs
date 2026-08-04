@@ -6,5 +6,7 @@ namespace Backend.Interfaces
     {
         Task<FileResponseDto> UploadFileAsync(FileUploadDto dto);
         Task<List<FileResponseDto>> UploadMultipleFilesAsync(FileUploadMultipleDto dto);
+        Task<PagedResultDto<FileResponseDto>> GetFilesAsync(FileQueryParamsDto queryParams);
+        Task<FileResponseDto?> GetByIdAsync(int id);
     }
 }

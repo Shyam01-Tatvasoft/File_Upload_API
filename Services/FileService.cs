@@ -96,5 +96,24 @@ namespace Backend.Services
 
             return await _fileRepository.AddAsync(entity);
         }
+
+        public async Task<PagedResultDto<FileResponseDto>> GetFilesAsync(FileQueryParamsDto queryParams)
+        {
+            var (items, totalCount) = await _fileRepository.GetAllAsync(queryParams);
+
+            return new PagedResultDto<FileResponseDto>
+            {
+                Items = _mapper.Map<List<FileResponseDto>>(items),
+                TotalCount = totalCount,
+                Page = queryParams.Page < 1 ? 1 : queryParams.Page,
+                PageSize = queryParams.PageSize is < 1 or > 100 ? 10 : queryParams.PageSize
+            };
+        }
+
+        public async Task<FileResponseDto?> GetByIdAsync(int id)
+        {
+            var entity = await _fileRepository.GetByIdAsync(id);
+            return entity == null ? null : _mapper.Map<FileResponseDto>(entity);
+        }
     }
 }
