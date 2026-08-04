@@ -68,5 +68,13 @@ namespace Backend.Repositories
 
             return (items, totalCount);
         }
+
+        public async Task<bool> DeleteAsync(FileEntity entity)
+        {
+            _context.Files.Remove(entity);
+            var rowsAffected = await _context.SaveChangesAsync();
+            return rowsAffected > 0;
+        }
+        
     }
 }

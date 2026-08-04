@@ -51,5 +51,16 @@ namespace Backend.Controllers
 
             return Ok(file);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteFile(int id)
+        {
+            var deleted = await _fileService.DeleteFileAsync(id);
+
+            if (!deleted)
+                return NotFound(new { message = $"File with id {id} not found." });
+
+            return NoContent();
+        }
     }
 }

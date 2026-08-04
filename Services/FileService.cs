@@ -6,6 +6,7 @@ using Backend.Interfaces;
 using Backend.Models;
 using Backend.Helpers;
 
+
 namespace Backend.Services
 {
     public class FileService : IFileService
@@ -114,6 +115,32 @@ namespace Backend.Services
         {
             var entity = await _fileRepository.GetByIdAsync(id);
             return entity == null ? null : _mapper.Map<FileResponseDto>(entity);
+        }
+
+        public async Task<bool> DeleteFileAsync(int id)
+        {
+            var entity = await _fileRepository.GetByIdAsync(id);
+            if (entity == null)
+            {
+                return false; // Controller will translate this into 404
+            }
+
+            var resourceType = entity.FileType == "image" ? ResourceType.Image : ResourceType.Raw;
+
+            var deletionParams = new DeletionParams(entity.PublicId)
+            {
+                ResourceType = resourceType
+            };
+
+            var deletionResult = await _cloudinary.DestroyAsync(deletionParams);
+
+            if (deletionResult.Result != "ok" && deletionResult.Result != "not found")
+            {
+                throw new ApplicationException(
+                    $"Failed to delete file from Cloudinary: {deletionResult.Result}");
+            }
+
+            return await _fileRepository.DeleteAsync(entity);
         }
     }
 }
