@@ -9,5 +9,6 @@ namespace Backend.Interfaces
         Task<FileEntity?> GetByIdAsync(int id);
         Task<(List<FileEntity> Items, int TotalCount)> GetAllAsync(FileQueryParamsDto queryParams);
         Task<bool> DeleteAsync(FileEntity entity);
+        Task<FileEntity> UpdateAsync(FileEntity entity);
     }
 }

@@ -75,6 +75,12 @@ namespace Backend.Repositories
             var rowsAffected = await _context.SaveChangesAsync();
             return rowsAffected > 0;
         }
-        
+
+        public async Task<FileEntity> UpdateAsync(FileEntity entity)
+        {
+            _context.Files.Update(entity);
+            await _context.SaveChangesAsync();
+            return entity;
+        }
     }
 }

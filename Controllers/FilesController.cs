@@ -62,5 +62,17 @@ namespace Backend.Controllers
 
             return NoContent();
         }
+
+        [HttpPut("{id}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateFile(int id, [FromForm] FileUpdateDto dto)
+        {
+            var result = await _fileService.UpdateFileAsync(id, dto);
+
+            if (result == null)
+                return NotFound(new { message = $"File with id {id} not found." });
+
+            return Ok(result);
+        }
     }
 }

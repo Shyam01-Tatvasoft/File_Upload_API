@@ -9,5 +9,6 @@ namespace Backend.Interfaces
         Task<PagedResultDto<FileResponseDto>> GetFilesAsync(FileQueryParamsDto queryParams);
         Task<FileResponseDto?> GetByIdAsync(int id);
         Task<bool> DeleteFileAsync(int id);
+        Task<FileResponseDto?> UpdateFileAsync(int id, FileUpdateDto dto);
     }
 }

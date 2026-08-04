@@ -5,6 +5,7 @@ using Backend.DTOs;
 using Backend.Interfaces;
 using Backend.Models;
 using Backend.Helpers;
+using CloudinaryDotNet.Actions;
 
 
 namespace Backend.Services
@@ -141,6 +142,97 @@ namespace Backend.Services
             }
 
             return await _fileRepository.DeleteAsync(entity);
+        }
+
+
+
+        public async Task<FileResponseDto?> UpdateFileAsync(int id, FileUpdateDto dto)
+        {
+            var entity = await _fileRepository.GetByIdAsync(id);
+            if (entity == null)
+            {
+                return null; // Controller translates this into 404
+            }
+
+            // Case 1: A new file was provided — replace the content on Cloudinary
+            if (dto.NewFile != null)
+            {
+                // Step A: Delete the old file from Cloudinary (reusing Module 9's approach)
+                var oldResourceType = entity.FileType == "image" ? ResourceType.Image : ResourceType.Raw;
+                var deletionParams = new DeletionParams(entity.PublicId) { ResourceType = oldResourceType };
+                var deletionResult = await _cloudinary.DestroyAsync(deletionParams);
+
+                if (deletionResult.Result != "ok" && deletionResult.Result != "not found")
+                {
+                    throw new ApplicationException(
+                        $"Failed to delete old file from Cloudinary during update: {deletionResult.Result}");
+                }
+
+                // Step B: Upload the new file (reusing Module 7's approach)
+                var isImage = FileTypeHelper.IsImage(dto.NewFile.FileName);
+                await using var stream = dto.NewFile.OpenReadStream();
+
+                RawUploadResult uploadResult;
+
+                if (isImage)
+                {
+                    var imageParams = new ImageUploadParams
+                    {
+                        File = new FileDescription(dto.NewFile.FileName, stream),
+                        Folder = entity.Folder,
+                        UseFilename = true,
+                        UniqueFilename = true,
+                        Overwrite = false
+                    };
+                    uploadResult = await _cloudinary.UploadAsync(imageParams);
+                }
+                else
+                {
+                    var rawParams = new RawUploadParams
+                    {
+                        File = new FileDescription(dto.NewFile.FileName, stream),
+                        Folder = entity.Folder,
+                        UseFilename = true,
+                        UniqueFilename = true,
+                        Overwrite = false
+                    };
+                    uploadResult = await _cloudinary.UploadAsync(rawParams);
+                }
+
+                if (uploadResult.Error != null)
+                {
+                    throw new ApplicationException(
+                        $"Failed to upload new file during update: {uploadResult.Error.Message}");
+                }
+
+                // Step C: Update the entity's file-related fields with the new upload's data
+                entity.PublicId = uploadResult.PublicId;
+                entity.FileName = uploadResult.PublicId;
+                entity.SecureUrl = uploadResult.SecureUrl.ToString();
+                entity.FileType = uploadResult.ResourceType;
+                entity.Extension = Path.GetExtension(dto.NewFile.FileName);
+                entity.FileSize = uploadResult.Bytes;
+                entity.Width = isImage ? (uploadResult as ImageUploadResult)?.Width : null;
+                entity.Height = isImage ? (uploadResult as ImageUploadResult)?.Height : null;
+
+                // If the client didn't explicitly provide a new display name,
+                // default to the new file's own name
+                if (string.IsNullOrWhiteSpace(dto.OriginalFileName))
+                {
+                    entity.OriginalFileName = dto.NewFile.FileName;
+                }
+            }
+
+            // Case 2: Rename only (applies whether or not a new file was also uploaded)
+            if (!string.IsNullOrWhiteSpace(dto.OriginalFileName))
+            {
+                entity.OriginalFileName = dto.OriginalFileName;
+            }
+
+            entity.UpdatedAt = DateTime.UtcNow;
+
+            var updatedEntity = await _fileRepository.UpdateAsync(entity);
+            return _mapper.Map<FileResponseDto>(updatedEntity);
         }
     }
 }
