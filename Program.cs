@@ -9,9 +9,19 @@ using Backend.Validators;
 using CloudinaryDotNet;
 using Backend.Configurations;
 using Backend.Repositories;
+using Backend.Middleware;
+using Serilog;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
 // Add services to the container.
 
@@ -42,10 +52,36 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
     options.MultipartBodyLengthLimit = 200 * 1024 * 1024; // 200 MB
 });
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("UploadPolicy", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 10;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 2;
+    });
+
+    options.RejectionStatusCode = 429; // Too Many Requests
+});
+
 builder.Services.AddScoped<IFileRepository, FileRepository>();
 builder.Services.AddScoped<IFileService, FileService>();
 
+const string CorsPolicyName = "AllowReactApp";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        policy.WithOrigins("http://localhost:5173") // Vite's default dev server port
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -55,9 +91,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseCors(CorsPolicyName);
+app.UseRateLimiter();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

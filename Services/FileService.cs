@@ -29,17 +29,33 @@ namespace Backend.Services
             return _mapper.Map<FileResponseDto>(savedEntity);
         }
 
-        public async Task<List<FileResponseDto>> UploadMultipleFilesAsync(FileUploadMultipleDto dto)
+        public async Task<MultiUploadResultDto> UploadMultipleFilesAsync(FileUploadMultipleDto dto)
         {
-            var results = new List<FileResponseDto>();
+            var succeeded = new List<FileResponseDto>();
+            var failed = new List<FileUploadErrorDto>();
 
             foreach (var file in dto.Files)
             {
-                var savedEntity = await UploadSingleInternalAsync(file, dto.Folder);
-                results.Add(_mapper.Map<FileResponseDto>(savedEntity));
+                try
+                {
+                    var savedEntity = await UploadSingleInternalAsync(file, dto.Folder);
+                    succeeded.Add(_mapper.Map<FileResponseDto>(savedEntity));
+                }
+                catch (Exception ex)
+                {
+                    failed.Add(new FileUploadErrorDto
+                    {
+                        FileName = file.FileName,
+                        ErrorMessage = ex.Message
+                    });
+                }
             }
 
-            return results;
+            return new MultiUploadResultDto
+            {
+                SucceededFiles = succeeded,
+                FailedFiles = failed
+            };
         }
 
         private async Task<FileEntity> UploadSingleInternalAsync(Microsoft.AspNetCore.Http.IFormFile file, string? folderOverride)

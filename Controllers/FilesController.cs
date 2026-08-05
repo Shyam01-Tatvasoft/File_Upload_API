@@ -3,6 +3,7 @@ using Backend.DTOs;
 using Backend.Interfaces;
 using Backend.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Backend.Controllers
 {
@@ -19,6 +20,7 @@ namespace Backend.Controllers
 
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
+        [EnableRateLimiting("UploadPolicy")]
         public async Task<IActionResult> Upload([FromForm] FileUploadDto dto)
         {
             var result = await _fileService.UploadFileAsync(dto);
@@ -27,10 +29,11 @@ namespace Backend.Controllers
 
         [HttpPost("upload-multiple")]
         [Consumes("multipart/form-data")]
+        [EnableRateLimiting("UploadPolicy")]
         public async Task<IActionResult> UploadMultiple([FromForm] FileUploadMultipleDto dto)
         {
-            var results = await _fileService.UploadMultipleFilesAsync(dto);
-            return Created(string.Empty, results);
+            var result = await _fileService.UploadMultipleFilesAsync(dto);
+            return Created(string.Empty, result);
         }
 
 
